@@ -1,0 +1,313 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  IT_MANAGER
+  IT_STAFF
+  EMPLOYEE
+  AUDITOR
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  IN_REPAIR
+  RETURN_REQUESTED
+  RETIRED
+}
+
+enum AssetType {
+  LAPTOP
+  DESKTOP
+  MONITOR
+  MOBILE
+  TABLET
+  PERIPHERAL
+  NETWORK_DEVICE
+  SOFTWARE
+  OTHER
+}
+
+enum AllocationStatus {
+  ACTIVE
+  RETURNED
+}
+
+enum ReturnRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+enum MaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRING
+  EXPIRED
+  SUSPENDED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  password      String
+  role          Role           @default(EMPLOYEE)
+  employeeId    String?        @unique
+  employee      Employee?      @relation(fields: [employeeId], references: [id])
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  allocations   Allocation[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Department {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  code      String     @unique
+  employees Employee[]
+  assets    Asset[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Employee {
+  id                 String              @id @default(cuid())
+  employeeCode       String              @unique
+  firstName          String
+  lastName           String
+  email              String              @unique
+  phone              String?
+  jobTitle           String?
+  status             EmployeeStatus      @default(ACTIVE)
+  departmentId       String?
+  department         Department?         @relation(fields: [departmentId], references: [id])
+  user               User?
+  allocations        Allocation[]
+  returnRequests     ReturnRequest[]
+  licenseAssignments LicenseAssignment[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model AssetCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  assets      Asset[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  building  String?
+  floor     String?
+  room      String?
+  assets    Asset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Asset {
+  id             String              @id @default(cuid())
+  assetTag       String              @unique
+  assetType      AssetType
+  status         AssetStatus         @default(AVAILABLE)
+  categoryId     String
+  category       AssetCategory       @relation(fields: [categoryId], references: [id])
+  manufacturer   String?
+  model          String?
+  serialNumber   String?             @unique
+  purchaseDate   DateTime?
+  purchasePrice  Decimal?            @db.Decimal(12, 2)
+  warrantyExpiry DateTime?
+  departmentId   String?
+  department     Department?         @relation(fields: [departmentId], references: [id])
+  locationId     String?
+  location       Location?           @relation(fields: [locationId], references: [id])
+  notes          String?
+  allocations    Allocation[]
+  returnRequests ReturnRequest[]
+  maintenance    MaintenanceRecord[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status])
+  @@index([assetType])
+  @@index([categoryId])
+  @@index([departmentId])
+  @@index([locationId])
+}
+
+model Allocation {
+  id                  String           @id @default(cuid())
+  assetId             String
+  asset               Asset            @relation(fields: [assetId], references: [id])
+  employeeId          String
+  employee            Employee         @relation(fields: [employeeId], references: [id])
+  assignedBy          String?
+  user                User?            @relation(fields: [assignedBy], references: [id])
+  assignedAt          DateTime         @default(now())
+  returnedAt          DateTime?
+  conditionAtCheckout String?
+  conditionAtReturn   String?
+  status              AllocationStatus @default(ACTIVE)
+  notes               String?
+
+  @@index([assetId])
+  @@index([employeeId])
+  @@index([status])
+}
+
+model ReturnRequest {
+  id          String              @id @default(cuid())
+  assetId     String
+  asset       Asset               @relation(fields: [assetId], references: [id])
+  employeeId  String
+  employee    Employee            @relation(fields: [employeeId], references: [id])
+  reason      String
+  condition   String?
+  status      ReturnRequestStatus @default(PENDING)
+  requestedAt DateTime            @default(now())
+  processedAt DateTime?
+  processedBy String?
+  notes       String?
+
+  @@index([assetId])
+  @@index([employeeId])
+  @@index([status])
+}
+
+model MaintenanceRecord {
+  id               String            @id @default(cuid())
+  assetId          String
+  asset            Asset             @relation(fields: [assetId], references: [id])
+  vendor           String?
+  issueDescription String
+  resolutionNotes  String?
+  cost             Decimal?          @db.Decimal(12, 2)
+  status           MaintenanceStatus @default(OPEN)
+  startedAt        DateTime          @default(now())
+  resolvedAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([assetId])
+  @@index([status])
+}
+
+model SoftwareLicense {
+  id             String              @id @default(cuid())
+  name           String
+  publisher      String?
+  licenseKey     String?
+  totalSeats     Int
+  availableSeats Int
+  purchaseDate   DateTime?
+  renewalDate    DateTime?
+  status         LicenseStatus       @default(ACTIVE)
+  notes          String?
+  assignments    LicenseAssignment[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status])
+  @@index([renewalDate])
+}
+
+model LicenseAssignment {
+  id         String          @id @default(cuid())
+  licenseId  String
+  license    SoftwareLicense @relation(fields: [licenseId], references: [id])
+  employeeId String
+  employee   Employee        @relation(fields: [employeeId], references: [id])
+  assignedAt DateTime        @default(now())
+  revokedAt  DateTime?
+  notes      String?
+
+  @@index([licenseId])
+  @@index([employeeId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([entityId])
+  @@index([createdAt])
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum NotificationType {
+  RETURN_REQUEST
+  ASSET_ASSIGNED
+  ASSET_RETURNED
+  MAINTENANCE
+  LICENSE_EXPIRING
+  LICENSE_EXPIRED
+  SYSTEM
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type     NotificationType
+  priority NotificationPriority @default(NORMAL)
+
+  title   String
+  message String
+
+  entity   String?
+  entityId String?
+  href     String?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@index([entity, entityId])
+}
