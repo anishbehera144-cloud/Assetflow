@@ -122,6 +122,12 @@ export async function getAssetDetail(assetId: string) {
     })
   );
 
+  const serializedOpenMaintenance = openMaintenance
+    ? serializedMaintenance.find(
+        (record) => record.id === openMaintenance.id
+      ) ?? null
+    : null;
+
   return {
     asset: serializedAsset,
     allocations,
@@ -130,6 +136,6 @@ export async function getAssetDetail(assetId: string) {
     auditLogs,
     activeAllocation,
     pendingReturn,
-    openMaintenance,
+    openMaintenance: serializedOpenMaintenance,
   };
 }

@@ -2,13 +2,13 @@ import {
   Activity,
   Boxes,
   FileKey2,
-  RefreshCw,
   Users,
   Wrench,
 } from "lucide-react";
 import { requirePermission } from "@/lib/auth";
 import { getReportsData } from "@/lib/reports-data";
 import { ReportAnalytics } from "@/components/reports/report-analytics";
+import { ReportRefreshButton } from "@/components/reports/report-refresh-button";
 
 export default async function ReportsPage() {
   await requirePermission("report.read");
@@ -67,14 +67,7 @@ export default async function ReportsPage() {
 
           {/* Header Actions */}
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-2.5 text-xs font-medium text-slate-400 transition hover:border-cyan-400/20 hover:bg-white/[0.05] hover:text-white"
-            >
-              <RefreshCw size={14} />
-              Refresh
-            </button>
+            <ReportRefreshButton />
           </div>
         </div>
 
